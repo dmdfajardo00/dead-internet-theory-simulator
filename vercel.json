@@ -1,7 +1,7 @@
 {
   "buildCommand": "cd dit-simulator && npm run build",
   "outputDirectory": "dit-simulator/.next",
-  "installCommand": "cd dit-simulator && npm install",
+  "installCommand": "cd dit-simulator && npm install --legacy-peer-deps",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
