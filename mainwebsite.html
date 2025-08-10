@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dead Internet Theory Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+        .tab {
+            cursor: pointer;
+        }
+        /* Custom scrollbar for a more modern look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="flex h-screen">
+        <!-- Left Panel: Facebook Comment Section Mockup -->
+        <div class="w-3/5 bg-white p-4 md:p-6 lg:p-8 overflow-y-auto">
+            <div class="max-w-2xl mx-auto">
+                <!-- Main Post -->
+                <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                    <div class="flex items-center mb-4">
+                        <img id="main-poster-img" src="https://placehold.co/50x50/E2E8F0/4A5568?text=P" class="w-12 h-12 rounded-full mr-4" alt="Poster Profile Picture">
+                        <div>
+                            <h2 id="main-poster-name" class="font-bold text-lg">Original Poster</h2>
+                            <p class="text-gray-500 text-sm">2 hours ago</p>
+                        </div>
+                    </div>
+                    <p id="seed-topic-display" class="text-gray-800">
+                        This is where the initial seed topic for the discussion will appear. It will be the starting point for the simulated conversation.
+                    </p>
+                    <div class="flex justify-between items-center mt-4 text-gray-500">
+                        <div><span id="like-count">127</span> Likes</div>
+                        <div><span id="comment-count-display">0</span> Comments</div>
+                    </div>
+                    <div class="border-t my-2"></div>
+                    <div class="flex justify-around">
+                        <button class="text-gray-600 hover:bg-gray-200 rounded-lg px-4 py-2 w-full text-center">Like</button>
+                        <button class="text-gray-600 hover:bg-gray-200 rounded-lg px-4 py-2 w-full text-center">Comment</button>
+                        <button class="text-gray-600 hover:bg-gray-200 rounded-lg px-4 py-2 w-full text-center">Share</button>
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div id="comments-section" class="space-y-4">
+                    <!-- Simulated comments will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Settings -->
+        <div class="w-2/5 bg-gray-50 p-4 md:p-6 lg:p-8 overflow-y-auto">
+            <div class="flex border-b mb-6">
+                <div id="orchestrator-tab" class="tab tab-active font-semibold py-2 px-4">Orchestrator</div>
+                <div id="edit-text-tab" class="tab py-2 px-4">Edit Text</div>
+            </div>
+
+            <!-- Orchestrator View -->
+            <div id="orchestrator-view">
+                <div class="mb-6">
+                    <label for="seed-topic" class="block text-sm font-medium text-gray-700 mb-2">Seed Topic</label>
+                    <input type="text" id="seed-topic" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Should pineapple be on pizza?">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Number of Users</label>
+                    <div id="user-count-selector" class="flex space-x-2">
+                        <button data-count="1" class="user-count-btn bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-blue-100">1</button>
+                        <button data-count="2" class="user-count-btn bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-blue-100">2</button>
+                        <button data-count="3" class="user-count-btn bg-blue-500 text-white border border-blue-500 rounded-lg px-4 py-2">3</button>
+                        <button data-count="4" class="user-count-btn bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-blue-100">4</button>
+                        <button data-count="5" class="user-count-btn bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-blue-100">5</button>
+                    </div>
+                </div>
+
+                <button id="generate-personas" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 mb-6">Generate Personas</button>
+
+                <div id="personas-container" class="space-y-4">
+                    <!-- Generated personas will appear here -->
+                </div>
+
+                <button id="start-simulation" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 mt-6 disabled:bg-gray-400" disabled>Start Simulation</button>
+                 <button id="clear-simulation" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 mt-2">Clear</button>
+            </div>
+
+            <!-- Edit Text View -->
+            <div id="edit-text-view" class="hidden">
+                <div class="mb-6">
+                    <label for="poster-name-input" class="block text-sm font-medium text-gray-700 mb-2">Name of Poster</label>
+                    <input type="text" id="poster-name-input" class="w-full p-2 border border-gray-300 rounded-lg" value="Original Poster">
+                </div>
+                <div id="user-name-inputs" class="space-y-4">
+                    <!-- Inputs for user names will be generated here -->
+                </div>
+                <button id="save-text-changes" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 mt-6">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const orchestratorTab = document.getElementById('orchestrator-tab');
+        const editTextTab = document.getElementById('edit-text-tab');
+        const orchestratorView = document.getElementById('orchestrator-view');
+        const editTextView = document.getElementById('edit-text-view');
+        const userCountSelector = document.getElementById('user-count-selector');
+        const generatePersonasBtn = document.getElementById('generate-personas');
+        const startSimulationBtn = document.getElementById('start-simulation');
+        const clearSimulationBtn = document.getElementById('clear-simulation');
+        const personasContainer = document.getElementById('personas-container');
+        const commentsSection = document.getElementById('comments-section');
+        const seedTopicInput = document.getElementById('seed-topic');
+        const seedTopicDisplay = document.getElementById('seed-topic-display');
+        const userNameInputsContainer = document.getElementById('user-name-inputs');
+        const posterNameInput = document.getElementById('poster-name-input');
+        const mainPosterName = document.getElementById('main-poster-name');
+        const mainPosterImg = document.getElementById('main-poster-img');
+        const saveTextChangesBtn = document.getElementById('save-text-changes');
+        const commentCountDisplay = document.getElementById('comment-count-display');
+
+
+        // --- State ---
+        let userCount = 3;
+        let personas = [];
+        let simulationRunning = false;
+
+        // --- Tab Switching Logic ---
+        orchestratorTab.addEventListener('click', () => {
+            orchestratorTab.classList.add('tab-active');
+            editTextTab.classList.remove('tab-active');
+            orchestratorView.classList.remove('hidden');
+            editTextView.classList.add('hidden');
+        });
+
+        editTextTab.addEventListener('click', () => {
+            editTextTab.classList.add('tab-active');
+            orchestratorTab.classList.remove('tab-active');
+            editTextView.classList.remove('hidden');
+            orchestratorView.classList.add('hidden');
+        });
+
+        // --- Orchestrator Logic ---
+        userCountSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('user-count-btn')) {
+                userCount = parseInt(e.target.dataset.count);
+                document.querySelectorAll('.user-count-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                    btn.classList.add('bg-white', 'border-gray-300');
+                });
+                e.target.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+                e.target.classList.remove('bg-white', 'border-gray-300');
+            }
+        });
+
+        generatePersonasBtn.addEventListener('click', async () => {
+            if (simulationRunning) return;
+            personasContainer.innerHTML = '<p class="text-center text-gray-500">Generating personas...</p>';
+            startSimulationBtn.disabled = true;
+
+            try {
+                // In a real app, you'd fetch from a user generation API
+                // For this mockup, we'll generate placeholder data.
+                const response = await fetch(`https://randomuser.me/api/?results=${userCount}&nat=us`);
+                const data = await response.json();
+                personas = data.results.map((user, index) => ({
+                    id: `user-${index}`,
+                    name: `${user.name.first} ${user.name.last}`,
+                    picture: user.picture.large,
+                    // In a real app, you'd use an LLM to generate a persona
+                    bio: generateSimplePersona(index)
+                }));
+                
+                renderPersonas();
+                renderEditTextInputs();
+                startSimulationBtn.disabled = false;
+
+            } catch (error) {
+                console.error("Failed to fetch personas:", error);
+                personasContainer.innerHTML = '<p class="text-center text-red-500">Error generating personas. Please try again.</p>';
+            }
+        });
+        
+        function generateSimplePersona(index) {
+            const politicalLeaning = index % 2 === 0 ? "conservative" : "liberal";
+            const topics = ["the economy", "healthcare", "foreign policy", "environmental regulations"];
+            const stances = {
+                conservative: ["lower taxes", "less government spending", "a strong military", "deregulation"],
+                liberal: ["social safety nets", "universal healthcare", "diplomatic solutions", "protecting the environment"]
+            };
+            return `A ${politicalLeaning}-leaning individual interested in ${topics[index % topics.length]}. Tends to argue for ${stances[politicalLeaning][index % stances[politicalLeaning].length]}.`;
+        }
+
+        function renderPersonas() {
+            personasContainer.innerHTML = '';
+            personas.forEach(persona => {
+                const personaCard = `
+                    <div class="bg-white rounded-lg shadow-md p-4 flex items-start space-x-4">
+                        <img src="${persona.picture}" alt="${persona.name}" class="w-16 h-16 rounded-full">
+                        <div>
+                            <h3 id="persona-name-${persona.id}" class="font-bold text-md">${persona.name}</h3>
+                            <p class="text-sm text-gray-600">${persona.bio}</p>
+                        </div>
+                    </div>
+                `;
+                personasContainer.insertAdjacentHTML('beforeend', personaCard);
+            });
+        }
+
+        startSimulationBtn.addEventListener('click', () => {
+            if (simulationRunning || personas.length === 0) return;
+            
+            const topic = seedTopicInput.value.trim();
+            if (!topic) {
+                alert("Please enter a seed topic.");
+                return;
+            }
+            
+            seedTopicDisplay.textContent = topic;
+            simulationRunning = true;
+            startSimulationBtn.disabled = true;
+            generatePersonasBtn.disabled = true;
+            clearSimulationBtn.disabled = false;
+
+            runConversation();
+        });
+
+        clearSimulationBtn.addEventListener('click', () => {
+            simulationRunning = false;
+            commentsSection.innerHTML = '';
+            commentCountDisplay.textContent = '0';
+            personasContainer.innerHTML = '';
+            userNameInputsContainer.innerHTML = '';
+            personas = [];
+            seedTopicInput.value = '';
+            seedTopicDisplay.textContent = 'This is where the initial seed topic for the discussion will appear...';
+            startSimulationBtn.disabled = true;
+            generatePersonasBtn.disabled = false;
+        });
+
+
+        // --- Simulation Logic ---
+        async function runConversation() {
+            let conversationHistory = `The following is a heated online debate. The main topic is: "${seedTopicInput.value}".\n\n`;
+            
+            for (let i = 0; i < 10; i++) { // Simulate 10 turns for demonstration
+                if (!simulationRunning) break;
+                
+                const currentUser = personas[i % personas.length];
+                
+                // Show typing indicator
+                let typingIndicator = createCommentElement({
+                    name: currentUser.name,
+                    picture: currentUser.picture,
+                    comment: '<span class="italic text-gray-500">... is typing</span>',
+                    timestamp: ''
+                });
+                commentsSection.appendChild(typingIndicator);
+                commentsSection.scrollTop = commentsSection.scrollHeight;
+
+
+                // In a real app, this is where you call the Gemini API
+                const prompt = `Conversation so far:\n${conversationHistory}\n\nNow, it's ${currentUser.name}'s turn.
+                Persona for ${currentUser.name}: ${currentUser.bio}.
+                Based on this persona and the conversation history, write a heated, short, and opinionated comment (1-3 sentences) as ${currentUser.name}. Do not repeat previous points. Be argumentative.`;
+                
+                console.log(`--- PROMPT FOR ${currentUser.name} ---`);
+                console.log(prompt);
+
+                // Mock API call
+                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000)); // Simulate API delay
+                const generatedComment = generateMockApiResponse(prompt, currentUser.name);
+                
+                // Remove typing indicator
+                commentsSection.removeChild(typingIndicator);
+
+                // Add the new comment
+                const newCommentElement = createCommentElement({
+                    name: currentUser.name,
+                    picture: currentUser.picture,
+                    comment: generatedComment,
+                    timestamp: `${Math.floor(i/personas.length) * 5 + 2} minutes ago`
+                });
+                commentsSection.appendChild(newCommentElement);
+                commentCountDisplay.textContent = i + 1;
+                
+                conversationHistory += `${currentUser.name}: ${generatedComment}\n`;
+            }
+            
+            simulationRunning = false;
+            generatePersonasBtn.disabled = false; // Re-enable after simulation
+        }
+
+        function createCommentElement({ name, picture, comment, timestamp }) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'flex items-start space-x-3';
+            commentDiv.innerHTML = `
+                <img src="${picture}" alt="${name}" class="w-10 h-10 rounded-full">
+                <div class="bg-gray-100 rounded-xl p-3 flex-1">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-sm">${name}</span>
+                        <span class="text-xs text-gray-500">${timestamp}</span>
+                    </div>
+                    <p class="text-sm">${comment}</p>
+                </div>
+            `;
+            return commentDiv;
+        }
+
+        // This is a MOCK function. Replace with actual Gemini API call.
+        function generateMockApiResponse(prompt, userName) {
+             if (prompt.toLowerCase().includes("pizza")) {
+                return Math.random() > 0.5 ? "Pineapple on pizza is an abomination and anyone who likes it has questionable taste. It's just wrong." : "Actually, the sweetness of pineapple perfectly complements the saltiness of the ham. It's called flavor balance, look it up.";
+            }
+            if (prompt.toLowerCase().includes("economy")) {
+                 return Math.random() > 0.5 ? "Endless government spending is ruining this country! We need to cut taxes and let the free market work." : "The 'free market' only benefits the rich. We need stronger social safety nets to protect working families.";
+            }
+            return `This is a mock response for ${userName}. The whole system is rigged, and people need to wake up!`;
+        }
+
+
+        // --- Edit Text Logic ---
+        function renderEditTextInputs() {
+            userNameInputsContainer.innerHTML = '';
+            personas.forEach(persona => {
+                const inputGroup = `
+                    <div class="mb-4">
+                        <label for="input-${persona.id}" class="block text-sm font-medium text-gray-700 mb-1">Name of User ${personas.indexOf(persona) + 1}</label>
+                        <input type="text" id="input-${persona.id}" data-id="${persona.id}" class="user-name-input w-full p-2 border border-gray-300 rounded-lg" value="${persona.name}">
+                    </div>
+                `;
+                userNameInputsContainer.insertAdjacentHTML('beforeend', inputGroup);
+            });
+        }
+
+        saveTextChangesBtn.addEventListener('click', () => {
+            // Update main poster name
+            const newPosterName = posterNameInput.value;
+            mainPosterName.textContent = newPosterName;
+            mainPosterImg.src = `https://placehold.co/50x50/E2E8F0/4A5568?text=${newPosterName.charAt(0)}`;
+
+            // Update user names
+            document.querySelectorAll('.user-name-input').forEach(input => {
+                const personaId = input.dataset.id;
+                const newName = input.value;
+                const persona = personas.find(p => p.id === personaId);
+                if (persona) {
+                    persona.name = newName;
+                }
+                // Also update the persona card in the orchestrator view
+                const personaNameEl = document.getElementById(`persona-name-${personaId}`);
+                if (personaNameEl) {
+                    personaNameEl.textContent = newName;
+                }
+            });
+
+            alert("Changes saved!");
+        });
+
+    </script>
+</body>
+</html>
