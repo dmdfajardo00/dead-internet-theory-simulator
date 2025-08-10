@@ -34,7 +34,7 @@ export function SeedTopicInput() {
 
       {showPromptSuggestions && (
         <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Prompt Suggestions</Label>
+          <Label className="text-sm text-gray-900 font-medium">Prompt Suggestions</Label>
           <div className="space-y-2">
             {promptSuggestions.map((suggestion, index) => (
               <Badge

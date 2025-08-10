@@ -15,7 +15,7 @@ export function PostOwnerInput() {
         value={postOwner}
         onChange={(e) => setPostOwner(e.target.value)}
         placeholder="Juan dela Cruz"
-        className="w-full"
+        className="w-full !border !border-gray-300 !bg-white !text-gray-900 px-3 py-2 rounded-md focus-visible:!ring-2 focus-visible:!ring-blue-500 focus-visible:!border-blue-500 focus:outline-none hover:!border-gray-400"
       />
     </div>
   );
