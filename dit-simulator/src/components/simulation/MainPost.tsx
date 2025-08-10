@@ -2,34 +2,25 @@
 
 import { useAppStore } from '@/stores/appStore';
 import { useState } from 'react';
-import { Persona } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CommentItem } from './CommentItem';
+import { TypingIndicator } from './TypingIndicator';
 
 export function MainPost() {
-  const { seedTopic, selectedPersonas, postOwner, simulationRunning, lastWebhookResponse } = useAppStore();
-  const [likes, setLikes] = useState(0);
+  const { 
+    seedTopic, 
+    postOwner, 
+    comments, 
+    typingIndicators,
+    simulationRunning,
+    simulationError,
+    currentRound
+  } = useAppStore();
+  const [likes, setLikes] = useState(127);
   const [shares, setShares] = useState(0);
   const [liked, setLiked] = useState(false);
-  
-  // Only show mock comments when simulation has actually been started
-  const mockComments = (simulationRunning || lastWebhookResponse) && selectedPersonas.length >= 2 ? [
-    {
-      id: '1',
-      author: selectedPersonas[0],
-      content: "This is a fascinating topic! I have strong opinions about this.",
-      timestamp: new Date().toISOString(),
-      likes: 5,
-    },
-    {
-      id: '2',
-      author: selectedPersonas[1],
-      content: "I completely disagree with the premise. Here's why...",
-      timestamp: new Date().toISOString(),
-      likes: 3,
-    },
-  ] : [];
 
   const handleLike = () => {
     if (liked) {
@@ -107,32 +98,41 @@ export function MainPost() {
         {likes > 0 && (
           <p className="text-sm font-semibold text-[var(--ig-fg)] mb-1">{likes} likes</p>
         )}
+        
+        {comments.length > 0 && (
+          <p className="text-sm font-semibold text-[var(--ig-fg)] mb-1">{comments.length} comments</p>
+        )}
       </div>
 
       {/* Comments Section */}
       <div className="border-t border-[var(--ig-border)]">
         <div className="px-3 py-2 space-y-3">
-          {mockComments.map((comment) => (
-            <div key={comment.id} className="flex space-x-2">
-              <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarImage src={comment.author.picture} alt={comment.author.name} />
-                <AvatarFallback>{comment.author.name.slice(0, 2)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="text-sm">
-                  <span className="font-semibold text-[var(--ig-fg)] mr-2">{comment.author.name}</span>
-                  <span className="text-[var(--ig-fg)]">{comment.content}</span>
-                </p>
-                <div className="mt-1 flex items-center space-x-3 text-xs text-[var(--ig-muted)]">
-                  <button className="hover:text-[var(--ig-fg)] font-medium">Like</button>
-                  <button className="hover:text-[var(--ig-fg)] font-medium">Reply</button>
-                  <span>{comment.likes} likes</span>
-                </div>
-              </div>
+
+          
+          {/* Error Display */}
+          {simulationError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">
+                <strong>Simulation Error:</strong> {simulationError}
+              </p>
             </div>
+          )}
+          
+          {/* Render Comments */}
+          {comments.map((comment) => (
+            <CommentItem key={comment.id} comment={comment} />
           ))}
           
-          {/* Add Comment */}
+          {/* Typing Indicators */}
+          {typingIndicators.map((indicator) => (
+            <TypingIndicator 
+              key={indicator.persona.id} 
+              persona={indicator.persona} 
+            />
+          ))}
+          
+          {/* Add Comment Input */}
+          
           <div className="flex items-center space-x-2 pt-2 border-t border-[var(--ig-border)]">
             <Avatar className="w-8 h-8 flex-shrink-0">
               <AvatarFallback>ME</AvatarFallback>
@@ -141,8 +141,14 @@ export function MainPost() {
               type="text"
               placeholder="Add a comment..."
               className="flex-1 border-0 bg-transparent px-0 placeholder:text-[var(--ig-muted)] focus-visible:ring-0"
+              disabled={simulationRunning}
             />
-            <Button variant="ghost" size="sm" className="text-[var(--ig-primary)] hover:text-[var(--ig-primary)]/80">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-[var(--ig-primary)] hover:text-[var(--ig-primary)]/80"
+              disabled={simulationRunning}
+            >
               Post
             </Button>
           </div>

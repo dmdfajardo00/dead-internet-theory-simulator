@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd dit-simulator && npm run build",
+  "outputDirectory": "dit-simulator/.next",
+  "installCommand": "cd dit-simulator && npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"]
+}

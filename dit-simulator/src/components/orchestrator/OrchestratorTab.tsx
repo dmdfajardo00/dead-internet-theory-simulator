@@ -5,16 +5,17 @@ import { PostOwnerInput } from './PostOwnerInput';
 import { PersonaLibrary } from './PersonaLibrary';
 import { DropZone } from './DropZone';
 import { ParticipantIndicators } from './ParticipantIndicators';
+import { RoundsSlider } from './RoundsSlider';
 import { StartSimulationButton } from './StartSimulationButton';
+import { ClientOnlyWrapper } from './ClientOnlyWrapper';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
 import { useState } from 'react';
 import { useAppStore } from '@/stores/appStore';
 import { PersonaCard } from './PersonaCard';
-import { Persona } from '@/types';
 
-export function OrchestratorTab() {
+function DragAndDropContent() {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const { availablePersonas, selectedPersonas, addPersona, removePersona } = useAppStore();
+  const { availablePersonas, addPersona } = useAppStore();
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
@@ -57,6 +58,9 @@ export function OrchestratorTab() {
           <PersonaLibrary />
         </div>
 
+        {/* Rounds Slider */}
+        <RoundsSlider />
+
         {/* Start Simulation Button */}
         <StartSimulationButton />
       </div>
@@ -68,5 +72,50 @@ export function OrchestratorTab() {
         ) : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+function StaticFallback() {
+  return (
+    <div className="space-y-6">
+      {/* Seed Topic Input */}
+      <SeedTopicInput />
+
+      {/* Post Owner Input */}
+      <PostOwnerInput />
+
+      {/* Selected Personas Drop Zone */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Selected Personas</h3>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[100px] flex items-center justify-center">
+          <p className="text-gray-500 text-sm">Loading personas...</p>
+        </div>
+        <ParticipantIndicators />
+      </div>
+
+      {/* Available Personas */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Available Personas</h3>
+        <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto pr-2">
+          <div className="text-center py-8 text-gray-500">
+            <p>Loading personas...</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Rounds Slider */}
+      <RoundsSlider />
+
+      {/* Start Simulation Button */}
+      <StartSimulationButton />
+    </div>
+  );
+}
+
+export function OrchestratorTab() {
+  return (
+    <ClientOnlyWrapper fallback={<StaticFallback />}>
+      <DragAndDropContent />
+    </ClientOnlyWrapper>
   );
 }

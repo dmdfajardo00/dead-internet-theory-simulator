@@ -32,11 +32,16 @@ export interface AppState {
   // Simulation state
   simulationRunning: boolean;
   lastWebhookResponse: WebhookResponse | null;
+  comments: Comment[];
+  typingIndicators: TypingIndicator[];
+  currentRound: number;
+  simulationError: string | null;
   
   // UI state
   activeTab: 'orchestrator' | 'editText';
   draggedPersona: Persona | null;
   showPromptSuggestions: boolean;
+  totalRounds: number;
   
   // Actions
   setSeedTopic: (topic: string) => void;
@@ -48,16 +53,37 @@ export interface AppState {
   setActiveTab: (tab: 'orchestrator' | 'editText') => void;
   setDraggedPersona: (persona: Persona | null) => void;
   setShowPromptSuggestions: (show: boolean) => void;
+  setTotalRounds: (rounds: number) => void;
+  addComment: (comment: Comment) => void;
+  setTypingIndicator: (persona: Persona, isTyping: boolean) => void;
+  setSimulationError: (error: string | null) => void;
 }
 
 // Comment type for simulation
 export interface Comment {
   id: string;
-  author: Persona;
+  persona: Persona;
   content: string;
+  rawContent: string;
+  mentions: Mention[];
   timestamp: string;
-  likes: number;
-  replies: Comment[];
+  round: number;
+  likes?: number;
+  replies?: Comment[];
+}
+
+// Mention type for processed comments
+export interface Mention {
+  name: string;
+  nickname: string;
+  position: number;
+  fullName: string;
+}
+
+// Typing indicator type
+export interface TypingIndicator {
+  persona: Persona;
+  isTyping: boolean;
 }
 
 // Post type for simulation

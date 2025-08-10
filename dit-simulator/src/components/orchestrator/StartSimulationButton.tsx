@@ -6,7 +6,16 @@ import { WebhookResponse } from '@/types';
 import { Button } from '@/components/ui/Button';
 
 export function StartSimulationButton() {
-  const { seedTopic, selectedPersonas, startSimulation, simulationRunning } = useAppStore();
+  const { 
+    seedTopic, 
+    selectedPersonas, 
+    startSimulation, 
+    simulationRunning,
+    comments,
+    currentRound,
+    simulationError,
+    clearSimulation
+  } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<WebhookResponse | null>(null);
   
@@ -49,23 +58,30 @@ export function StartSimulationButton() {
         className="w-full"
         size="lg"
       >
-        {isLoading ? 'Starting Simulation...' : 'Start Simulation'}
+        {simulationRunning 
+          ? 'Simulation Running...' 
+          : isLoading 
+            ? 'Starting Simulation...' 
+            : 'Start Political Debate'
+        }
       </Button>
       
-      {lastResponse && (
-        <div className={`p-3 rounded-lg text-sm border ${
-          lastResponse.success
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-[var(--ig-heart)] text-[var(--ig-heart)]'
-        }`}>
-          <p className="font-medium">
-            {lastResponse.success ? '✅ Success' : '❌ Error'}
-          </p>
-          <p className="mt-1">
-            {lastResponse.success ? lastResponse.message : lastResponse.error}
-          </p>
-        </div>
+      {/* Clear Simulation Button */}
+      {(comments.length > 0 || simulationError) && !simulationRunning && (
+        <Button
+          onClick={() => {
+            clearSimulation();
+            setLastResponse(null);
+          }}
+          variant="outline"
+          className="w-full"
+          size="sm"
+        >
+          Clear Simulation
+        </Button>
       )}
+      
+
       
       {/* Validation hints */}
       {!seedTopic.trim() && selectedPersonas.length >= 2 && (
