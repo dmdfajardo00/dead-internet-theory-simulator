@@ -53,7 +53,7 @@ export function StartSimulationButton() {
           ? 'Simulation Running...' 
           : isLoading 
             ? 'Starting Simulation...' 
-            : 'Start Political Debate'
+            : 'Start Simulation'
         }
       </Button>
       
