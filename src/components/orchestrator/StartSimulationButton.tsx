@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/stores/appStore';
-import { WebhookResponse } from '@/types';
 import { Button } from '@/components/ui/Button';
 
 export function StartSimulationButton() {
@@ -12,12 +11,10 @@ export function StartSimulationButton() {
     startSimulation, 
     simulationRunning,
     comments,
-    currentRound,
     simulationError,
     clearSimulation
   } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [lastResponse, setLastResponse] = useState<WebhookResponse | null>(null);
   
   const handleStartSimulation = async () => {
     if (!seedTopic.trim() || selectedPersonas.length < 2) {
@@ -26,11 +23,9 @@ export function StartSimulationButton() {
     }
     
     setIsLoading(true);
-    setLastResponse(null);
     
     try {
       const response = await startSimulation();
-      setLastResponse(response);
       
       if (response.success) {
         console.log('Simulation started successfully!');
@@ -39,10 +34,6 @@ export function StartSimulationButton() {
       }
     } catch (error) {
       console.error('Unexpected error:', error);
-      setLastResponse({
-        success: false,
-        error: 'An unexpected error occurred'
-      });
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +62,6 @@ export function StartSimulationButton() {
         <Button
           onClick={() => {
             clearSimulation();
-            setLastResponse(null);
           }}
           variant="outline"
           className="w-full"

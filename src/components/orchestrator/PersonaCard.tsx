@@ -2,7 +2,6 @@
 
 import { Persona } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 interface PersonaCardProps {

@@ -65,7 +65,7 @@ export class SimulationService {
             console.error(`Error generating comment for ${persona.name}:`, error);
             
             // Generate fallback comment
-            const fallbackComment = this.getFallbackComment(persona, round);
+            const fallbackComment = this.getFallbackComment(persona);
             const comment: Comment = {
               id: `comment-${Date.now()}-${persona.id}`,
               persona,
@@ -175,7 +175,7 @@ ROUND ${round} INSTRUCTIONS:
 Generate your response now:`;
   }
 
-  private getFallbackComment(persona: Persona, round: number): string {
+  private getFallbackComment(persona: Persona): string {
     const fallbacks: Record<string, string[]> = {
       "1": [
         "I still believe in good governance and transparency!",

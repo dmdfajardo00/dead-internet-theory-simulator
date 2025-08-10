@@ -24,7 +24,7 @@ export class OpenRouterService {
           // Try to parse as JSON first
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
+        } catch {
           // If JSON parsing fails, try to get text
           try {
             const errorText = await response.text();

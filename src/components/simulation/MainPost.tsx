@@ -2,7 +2,7 @@
 
 import { useAppStore } from '@/stores/appStore';
 import { useState } from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/Avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CommentItem } from './CommentItem';
@@ -15,8 +15,7 @@ export function MainPost() {
     comments, 
     typingIndicators,
     simulationRunning,
-    simulationError,
-    currentRound
+    simulationError
   } = useAppStore();
   const [likes, setLikes] = useState(127);
   const [shares, setShares] = useState(0);

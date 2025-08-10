@@ -1,12 +1,10 @@
 'use client';
 
-import { useAppStore } from '@/stores/appStore';
 import { MainPanel } from '@/components/layout/MainPanel';
 import { Sidebar } from '@/components/layout/Sidebar';
 import Image from 'next/image';
 
 export default function Home() {
-  const activeTab = useAppStore((state) => state.activeTab);
 
   return (
     <div className="min-h-screen bg-gray-100">

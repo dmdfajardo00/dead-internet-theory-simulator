@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 function Avatar({
@@ -21,11 +22,25 @@ function Avatar({
 
 function AvatarImage({
   className,
+  src,
+  alt,
+  width = 32,
+  height = 32,
   ...props
-}: React.ComponentProps<"img">) {
+}: {
+  className?: string;
+  src?: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+} & Omit<React.ComponentProps<typeof Image>, 'src' | 'alt' | 'width' | 'height'>) {
   return (
-    <img
+    <Image
       data-slot="avatar-image"
+      src={src || "/users/placeholder.png"}
+      alt={alt || "Avatar"}
+      width={width}
+      height={height}
       className={cn("aspect-square size-full object-cover", className)}
       {...props}
     />

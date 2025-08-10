@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Persona, SimulationPayload, WebhookResponse, Comment, TypingIndicator } from '@/types';
-import { webhookService } from '@/webhooks/webhookService';
+import { AppState, Persona } from '@/types';
 import { SimulationService } from '@/services/simulationService';
 
 // Filipino political personas
