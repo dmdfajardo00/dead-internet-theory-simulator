@@ -139,7 +139,7 @@ export function MainPost() {
             <Input
               type="text"
               placeholder="Add a comment..."
-              className="flex-1 border-0 bg-transparent px-0 placeholder:text-[var(--ig-muted)] focus-visible:ring-0"
+              className="flex-1 border-0 bg-transparent px-0 placeholder:text-gray-400 focus-visible:ring-0"
               disabled={simulationRunning}
             />
             <Button 
