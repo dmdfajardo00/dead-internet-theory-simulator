@@ -8,15 +8,41 @@ export function PostOwnerInput() {
   const { postOwner, setPostOwner } = useAppStore();
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor="post-owner">Post Owner</Label>
-      <Input
-        id="post-owner"
-        value={postOwner}
-        onChange={(e) => setPostOwner(e.target.value)}
-        placeholder="Juan dela Cruz"
-        className="w-full !border !border-gray-300 !bg-white !text-gray-900 px-3 py-2 rounded-md focus-visible:!ring-2 focus-visible:!ring-blue-500 focus-visible:!border-blue-500 focus:outline-none hover:!border-gray-400 selection:bg-blue-100 selection:text-blue-900"
-      />
-    </div>
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .post-owner-input-custom::selection {
+            background-color: #dbeafe !important;
+            color: #1e3a8a !important;
+          }
+          .post-owner-input-custom::-moz-selection {
+            background-color: #dbeafe !important;
+            color: #1e3a8a !important;
+          }
+          .post-owner-input-custom {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border: 1px solid #d1d5db !important;
+          }
+          .post-owner-input-custom:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+          }
+          .post-owner-input-custom:hover {
+            border-color: #9ca3af !important;
+          }
+        `
+      }} />
+      <div className="space-y-2">
+        <Label htmlFor="post-owner">Post Owner</Label>
+        <Input
+          id="post-owner"
+          value={postOwner}
+          onChange={(e) => setPostOwner(e.target.value)}
+          placeholder="Juan dela Cruz"
+          className="post-owner-input-custom w-full px-3 py-2 rounded-md focus:outline-none"
+        />
+      </div>
+    </>
   );
 }
