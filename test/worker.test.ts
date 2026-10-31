@@ -100,13 +100,13 @@ describe('ownership', () => {
     const bob = guest()
     const { post }: CreatePostResult = await (await alice('/posts', { method: 'POST', json: { content: 'Alice was here' } })).json()
 
-    expect((await (await alice(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json()).bookmarked).toBe(true)
+    expect((await (await alice(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json<{ bookmarked: boolean }>()).bookmarked).toBe(true)
     const bobSaved: Page = await (await bob('/saved')).json()
     expect(bobSaved.posts).toHaveLength(0)
 
     // Bob toggling only affects Bob's own bookmark
-    expect((await (await bob(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json()).bookmarked).toBe(true)
-    expect((await (await bob(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json()).bookmarked).toBe(false)
+    expect((await (await bob(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json<{ bookmarked: boolean }>()).bookmarked).toBe(true)
+    expect((await (await bob(`/posts/${post.id}/bookmark`, { method: 'POST', json: {} })).json<{ bookmarked: boolean }>()).bookmarked).toBe(false)
     const aliceSaved: Page = await (await alice('/saved')).json()
     expect(aliceSaved.posts.map((p) => p.id)).toEqual([post.id])
 
