@@ -1,4 +1,4 @@
-// LLM access: Worker -> Cloudflare AI Gateway -> OpenRouter. Persona voices live here, server-side only.
+// LLM access: Worker -> OpenRouter. Persona voices live here, server-side only.
 import { z } from 'zod'
 import { PERSONA_IDS, PERSONAS, type PersonaId } from '../shared/contract'
 
@@ -52,19 +52,18 @@ export function parseReplies(raw: string, expected: PersonaId[]): Reply[] {
 }
 
 export const aiMode = (env: Env): 'live' | 'demo' =>
-  env.OPENROUTER_API_KEY && env.CLOUDFLARE_ACCOUNT_ID && env.AI_GATEWAY_ID ? 'live' : 'demo'
+  env.OPENROUTER_API_KEY ? 'live' : 'demo'
 
 export async function generateReplies(env: Env, personas: PersonaId[], history: HistoryItem[]): Promise<{ replies: Reply[]; generator: 'live' | 'demo' }> {
   if (aiMode(env) === 'demo') return { replies: demoReplies(personas, history), generator: 'demo' }
 
-  const url = `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.AI_GATEWAY_ID}/openrouter/chat/completions`
   const brief = personas.map((p) => `- id "${p}": ${VOICES[p]}`).join('\n')
-  const res = await fetch(url, {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-      ...(env.AI_GATEWAY_TOKEN ? { 'cf-aig-authorization': `Bearer ${env.AI_GATEWAY_TOKEN}` } : {}),
+      'x-title': 'Deadnet',
     },
     body: JSON.stringify({
       model: env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite',
@@ -81,10 +80,10 @@ export async function generateReplies(env: Env, personas: PersonaId[], history: 
     }),
     signal: AbortSignal.timeout(25_000),
   })
-  if (!res.ok) throw new Error(`AI gateway responded ${res.status}`)
+  if (!res.ok) throw new Error(`OpenRouter responded ${res.status}`)
   const data = await res.json<{ choices?: { message?: { content?: string } }[] }>()
   const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('AI gateway returned no content')
+  if (!content) throw new Error('OpenRouter returned no content')
   return { replies: parseReplies(content, personas), generator: 'live' }
 }
 

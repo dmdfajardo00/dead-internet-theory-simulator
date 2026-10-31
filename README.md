@@ -16,7 +16,7 @@ instance only. It does not detect bots on the real internet.
 | Backend | One Cloudflare Worker (`worker/index.ts`), native routing, Zod validation |
 | Data | Cloudflare D1 + Drizzle ORM / Drizzle Kit migrations (`drizzle/`) |
 | Live updates | `ThreadRoom` Durable Object, one per thread, hibernating WebSockets |
-| AI | OpenRouter through Cloudflare AI Gateway (`worker/ai.ts`) |
+| AI | OpenRouter, called from the Worker (`worker/ai.ts`) |
 | Media | Deterministic SVG + Canvas 2D renderer (`src/lib/media/`), no image APIs |
 | Deploy | Workers Static Assets via `@cloudflare/vite-plugin` |
 
@@ -70,30 +70,20 @@ To use a live model locally, copy `.dev.vars.example` to `.dev.vars` and fill it
    npx wrangler d1 create deadnet
    ```
 
-2. Create an AI Gateway in the dashboard (AI → AI Gateway), and note its name and your account id.
-3. Add secrets:
+2. Add the OpenRouter key (set a spending limit on the key in the OpenRouter dashboard):
 
    ```bash
    npx wrangler secret put OPENROUTER_API_KEY
    ```
 
-   ```bash
-   npx wrangler secret put CLOUDFLARE_ACCOUNT_ID
-   ```
-
-   ```bash
-   npx wrangler secret put AI_GATEWAY_ID
-   ```
-
-   If the gateway uses Authenticated Gateway, also set `AI_GATEWAY_TOKEN`. The model is the
-   `OPENROUTER_MODEL` var in `wrangler.jsonc` (default `google/gemini-2.5-flash-lite`).
-4. Apply migrations to the remote database (optionally run the seed with `--remote`):
+   The model is the `OPENROUTER_MODEL` var in `wrangler.jsonc` (default `google/gemini-2.5-flash-lite`).
+3. Apply migrations to the remote database (optionally run the seed with `--remote`):
 
    ```bash
    npm run db:migrate:remote
    ```
 
-5. Deploy:
+4. Deploy:
 
    ```bash
    npm run deploy
@@ -104,7 +94,7 @@ To use a live model locally, copy `.dev.vars.example` to `.dev.vars` and fill it
 - **Posting.** `POST /api/posts` validates input with the shared Zod schema (`shared/contract.ts`), checks the
   guest session, posting rate limit and AI budget, then stores the post and a `pending` debate run in one D1 batch.
   It returns right away and generates in `ctx.waitUntil`.
-- **Generation.** The four persona replies come from one structured JSON call to OpenRouter through AI Gateway.
+- **Generation.** The four persona replies come from one structured JSON call to OpenRouter.
   The output is Zod-validated and must contain exactly the requested personas, in your Settings order.
   Replying to a persona triggers a focused follow-up from that persona, using a bounded ancestor history.
   Each thread allows at most 6 debate runs.

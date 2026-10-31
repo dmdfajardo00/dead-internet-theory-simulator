@@ -26,5 +26,5 @@
     // Inexpensive structured-output capable model; override per environment.
     "OPENROUTER_MODEL": "google/gemini-2.5-flash-lite"
   }
-  // Secrets (wrangler secret put / .dev.vars): OPENROUTER_API_KEY, CLOUDFLARE_ACCOUNT_ID, AI_GATEWAY_ID, optional AI_GATEWAY_TOKEN
+  // Secret (wrangler secret put / .dev.vars): OPENROUTER_API_KEY
 }
