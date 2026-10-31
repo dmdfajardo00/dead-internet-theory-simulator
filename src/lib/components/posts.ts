@@ -2,9 +2,9 @@
 import type { QueryClient } from '@tanstack/svelte-query'
 import { PERSONAS, type AuthorView, type Generator, type PersonaId, type PostView, type Tone } from '../../../shared/contract'
 
-/** Refetch everything derived from posts (feed, search, saved, thread, myDebate, stats, trending). */
-export const invalidatePosts = (qc: QueryClient) =>
-  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'me' })
+/** Refetch everything derived from posts (feed, search, saved, thread, myDebate, stats, trending), plus `me`
+ *  since the first write creates the guest session. */
+export const invalidatePosts = (qc: QueryClient) => qc.invalidateQueries()
 
 /** Apply a patch to every cached copy of a post (feeds, nested reply previews, threads). */
 export function patchPost(qc: QueryClient, id: string, patch: Partial<PostView>) {

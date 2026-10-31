@@ -61,3 +61,21 @@ export const bookmarks = sqliteTable('bookmarks', {
   postId: text('post_id').notNull().references(() => posts.id, { onDelete: 'cascade' }),
   createdAt: integer('created_at').notNull(),
 }, (t) => [primaryKey({ columns: [t.visitorId, t.postId] }), index('bookmarks_visitor_idx').on(t.visitorId, t.createdAt)])
+
+// Append-only usage log for rate limits and AI spend. No foreign keys on purpose: deleting a post
+// must never reset the limits that count it.
+export const usageEvents = sqliteTable('usage_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['post', 'ai', 'session'] }).notNull(),
+  visitorId: text('visitor_id').notNull(),
+  ip: text('ip').notNull(),
+  rootId: text('root_id'),
+  runId: text('run_id'),
+  createdAt: integer('created_at').notNull(),
+}, (t) => [
+  index('usage_visitor_idx').on(t.kind, t.visitorId, t.createdAt),
+  index('usage_ip_idx').on(t.kind, t.ip, t.createdAt),
+  index('usage_created_idx').on(t.kind, t.createdAt),
+  index('usage_root_idx').on(t.rootId),
+  index('usage_run_idx').on(t.runId),
+])

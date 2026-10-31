@@ -32,6 +32,12 @@ export function syncPrefs() {
     try { localStorage.setItem(KEY, JSON.stringify(prefs)) } catch { /* storage unavailable */ }
     applyTheme()
   })
+  // follow OS light/dark changes while the theme is 'system'
+  $effect(() => {
+    const mq = matchMedia('(prefers-color-scheme: dark)')
+    mq.addEventListener('change', applyTheme)
+    return () => mq.removeEventListener('change', applyTheme)
+  })
 }
 
 export function resetPrefs() {

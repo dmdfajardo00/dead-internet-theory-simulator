@@ -4,8 +4,9 @@
   import { tick } from 'svelte'
   import { PERSONAS, type AuthorType, type TrendingTopic } from '../../../shared/contract'
   import { api } from '../api'
+  import { mulberry32 } from '../media/engine'
   import { prefs } from '../prefs.svelte'
-  import { href, navigate } from '../router.svelte'
+  import { href, navigate, router } from '../router.svelte'
   import Avatar from './Avatar.svelte'
   import { compact, timeAgo, toneClass } from './posts'
 
@@ -18,7 +19,12 @@
   const ago = (t: number) => (timeAgo(t) === 'now' ? 'just now' : `${timeAgo(t)} ago`)
 
   async function startDebate() {
-    navigate(href.home)
+    if (router.route.name !== 'home') {
+      // the route only changes on the next hashchange, so wait for it before looking for the composer
+      const changed = new Promise((r) => addEventListener('hashchange', r, { once: true }))
+      navigate(href.home)
+      await changed
+    }
     await tick()
     document.getElementById('composer-input')?.focus()
   }
@@ -29,15 +35,6 @@
     { type: 'bot', label: 'Synthetic account posts', fill: 'var(--color-faint)' },
     { type: 'human', label: 'Human posts (visitors)', fill: 'var(--color-mint)' },
   ]
-
-  function mulberry32(a: number) {
-    return () => {
-      a = (a + 0x6d2b79f5) | 0
-      let t = Math.imul(a ^ (a >>> 15), 1 | a)
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-    }
-  }
 
   const graph = $derived.by(() => {
     const by = stats.data?.postsByType

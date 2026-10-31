@@ -13,7 +13,10 @@ function parse(hash: string): Route {
     case 'explore': return { name: 'explore', params: new URLSearchParams(query) }
     case 'saved': return { name: 'saved' }
     case 'settings': return { name: 'settings' }
-    case 'post': if (parts[1]) return { name: 'post', id: decodeURIComponent(parts[1]) }
+    case 'post':
+      if (parts[1]) {
+        try { return { name: 'post', id: decodeURIComponent(parts[1]) } } catch { /* malformed link: fall through to home */ }
+      }
   }
   return { name: 'home' }
 }

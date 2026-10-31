@@ -13,7 +13,12 @@
   let { id }: { id: string } = $props()
 
   const qc = useQueryClient()
-  const thread = createQuery(() => ({ queryKey: ['thread', id], queryFn: () => api.thread(id) }))
+  const thread = createQuery(() => ({
+    queryKey: ['thread', id],
+    queryFn: () => api.thread(id),
+    // poll while a debate is open so server-side stale-run expiry still reaches the page
+    refetchInterval: (q) => (q.state.data?.debates.some((d) => d.status === 'pending' || d.status === 'running') ? 20_000 : false),
+  }))
   const rootId = $derived(thread.data?.root.id)
   let replyingTo: string | null = $state(null)
 
@@ -29,7 +34,6 @@
     return m
   })
   const openDebates = $derived((thread.data?.debates ?? []).filter((d) => d.status !== 'completed'))
-  const participated = $derived((thread.data?.posts ?? []).some((p) => p.isOwn))
 
   // Scroll a linked reply into view once.
   let scrolled = false
@@ -121,7 +125,7 @@
 
     {#each openDebates as d (d.id)}
       <div class="mt-3">
-        <DebateStatus debate={d} rootId={root.id} isOwn={participated} watch={false} />
+        <DebateStatus debate={d} rootId={root.id} isOwn={d.isOwn} watch={false} />
       </div>
     {/each}
 

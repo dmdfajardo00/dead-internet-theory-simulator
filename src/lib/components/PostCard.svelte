@@ -79,7 +79,10 @@
     if (!confirm('Delete this post? Replies in its thread will be removed too.')) return
     try {
       await api.deletePost(post.id)
-      if (router.route.name === 'post' && (router.route.id === post.id || router.route.id === post.rootId) && !post.parentId) navigate(href.home)
+      const r = router.route
+      // leave the thread view if its root (or the routed reply) no longer exists
+      if (r.name === 'post' && !post.parentId && (r.id === post.id || qc.getQueryData<{ root: { id: string } }>(['thread', r.id])?.root.id === post.id)) navigate(href.home)
+      else if (r.name === 'post' && r.id === post.id) navigate(href.post(post.rootId))
       await invalidatePosts(qc)
     } catch (e) {
       fail(e)
@@ -105,7 +108,7 @@
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[15px] leading-6">
         <span class="font-semibold text-ink">{a.name}</span>
         {#if a.verified}
-          <Icon icon="tabler:rosette-discount-check-filled" class="size-4.5 text-accent" aria-label="Verified" />
+          <Icon icon="tabler:rosette-discount-check-filled" class="size-4.5 text-accent" role="img" aria-hidden={false} aria-label="Verified" />
         {/if}
         <span class="truncate text-muted">@{a.handle}</span>
         {#if prefs.reveal}

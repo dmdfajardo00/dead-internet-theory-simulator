@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { exports } from 'cloudflare:workers'
+import { env } from 'cloudflare:test'
 import { parseReplies } from '../worker/ai'
 import type { CreatePostResult, Me, Page, ThreadView } from '../shared/contract'
 
@@ -91,6 +92,39 @@ describe('posting', () => {
     for (let i = 0; i < 10; i++) statuses.push((await c('/posts', { method: 'POST', json: { content: `post ${i}` } })).status)
     expect(statuses.slice(0, 8).every((s) => s === 201)).toBe(true)
     expect(statuses.at(-1)).toBe(429)
+  })
+})
+
+describe('abuse limits', () => {
+  it('does not create a session on read', async () => {
+    const res = await exports.default.fetch(new Request(`${ORIGIN}/api/me`))
+    expect(res.headers.get('set-cookie')).toBeNull()
+    expect((await res.json<Me>()).id).toBe('')
+  })
+
+  it('deleting posts does not reset the posting limit', async () => {
+    const c = guest()
+    for (let i = 0; i < 8; i++) {
+      const { post }: CreatePostResult = await (await c('/posts', { method: 'POST', json: { content: `burn ${i}` } })).json()
+      expect((await c(`/posts/${post.id}`, { method: 'DELETE' })).status).toBe(200)
+    }
+    expect((await c('/posts', { method: 'POST', json: { content: 'one more' } })).status).toBe(429)
+  })
+
+  it('counts and caps debate retries', async () => {
+    const c = guest()
+    const { post, debate }: CreatePostResult = await (await c('/posts', { method: 'POST', json: { content: 'Retry budget' } })).json()
+    await waitForDebate(c, post.id)
+    const fail = () => env.DB.prepare(`update debate_runs set status = 'failed' where id = ?`).bind(debate!.id).run()
+    for (let i = 0; i < 2; i++) {
+      await fail()
+      expect((await c(`/debates/${debate!.id}/retry`, { method: 'POST', json: {} })).status).toBe(200)
+      await waitForDebate(c, post.id)
+    }
+    await fail()
+    expect((await c(`/debates/${debate!.id}/retry`, { method: 'POST', json: {} })).status).toBe(409)
+    const used = await env.DB.prepare(`select count(*) n from usage_events where kind = 'ai' and run_id = ?`).bind(debate!.id).first<{ n: number }>()
+    expect(used?.n).toBe(3)
   })
 })
 

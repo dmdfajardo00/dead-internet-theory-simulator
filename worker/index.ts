@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1'
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { posts, visitors, debateRuns, reactions, bookmarks } from './db/schema'
+import { posts, visitors, debateRuns, reactions, bookmarks, usageEvents } from './db/schema'
 import {
   BOTS, DEBATE_LIMITS, FEED_TABS, AUTHOR_FILTERS, PERSONAS, PERSONA_IDS, PostInput, guestIdentity,
   type AuthorView, type DebateView, type LiveEvent, type MediaSpec, type PersonaId, type PostView, type Stats, type ThreadView, type TrendingTopic,
@@ -20,7 +20,7 @@ declare global {
   }
 }
 
-const schema = { posts, visitors, debateRuns, reactions, bookmarks }
+const schema = { posts, visitors, debateRuns, reactions, bookmarks, usageEvents }
 type DB = ReturnType<typeof drizzle<typeof schema>>
 type Post = typeof posts.$inferSelect
 type Run = typeof debateRuns.$inferSelect
@@ -31,6 +31,11 @@ const LIMITS = {
   postWindowMs: 10 * 60_000,
   debatesPerVisitorPerDay: 20,
   debatesPerDay: 500, // global spend guard for OpenRouter credits
+  // per-IP caps stop one client from minting guest sessions to dodge the per-guest limits
+  postsPerIpPerWindow: 30,
+  debatesPerIpPerDay: 60,
+  sessionsPerIpPerHour: 30,
+  retriesPerRun: 2,
   threadPosts: 200,
   pageSize: 15,
   previewReplies: 4,
@@ -48,9 +53,27 @@ interface Ctx {
   env: Env
   exec: ExecutionContext
   db: DB
+  ip: string
   visitor: Visitor | null
   setCookie?: string
 }
+
+type UsageKind = 'post' | 'ai' | 'session'
+
+/** Counts usage events (append-only, survives post deletion) for this visitor, this IP and globally. */
+async function usage(ctx: Ctx, kind: UsageKind, since: number) {
+  const { db } = ctx
+  const recent = and(eq(usageEvents.kind, kind), gte(usageEvents.createdAt, since))
+  const [mine, ip, all] = await Promise.all([
+    ctx.visitor ? db.select({ n: count() }).from(usageEvents).where(and(recent, eq(usageEvents.visitorId, ctx.visitor.id))).get() : undefined,
+    db.select({ n: count() }).from(usageEvents).where(and(recent, eq(usageEvents.ip, ctx.ip))).get(),
+    db.select({ n: count() }).from(usageEvents).where(recent).get(),
+  ])
+  return { mine: mine?.n ?? 0, ip: ip?.n ?? 0, all: all?.n ?? 0 }
+}
+
+const usageRow = (ctx: Ctx, kind: UsageKind, extra: { rootId?: string; runId?: string } = {}) =>
+  ({ kind, visitorId: ctx.visitor?.id ?? '', ip: ctx.ip, rootId: extra.rootId ?? null, runId: extra.runId ?? null, createdAt: Date.now() })
 
 // ---------- sessions ----------
 async function sha256(text: string) {
@@ -76,11 +99,14 @@ async function loadVisitor(db: DB, req: Request) {
 /** Returns the current guest, creating an anonymous session (opaque token in an HttpOnly cookie) if needed. */
 async function requireVisitor(ctx: Ctx): Promise<Visitor> {
   if (ctx.visitor) return ctx.visitor
+  if ((await usage(ctx, 'session', Date.now() - 3_600_000)).ip >= LIMITS.sessionsPerIpPerHour) {
+    throw new HttpError(429, 'Too many new sessions from this network. Try again later.')
+  }
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   const token = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   const now = Date.now()
   const visitor: Visitor = { id: crypto.randomUUID(), tokenHash: await sha256(token), kind: 'guest', createdAt: now, lastSeenAt: now }
-  await ctx.db.insert(visitors).values(visitor)
+  await ctx.db.batch([ctx.db.insert(visitors).values(visitor), ctx.db.insert(usageEvents).values({ ...usageRow(ctx, 'session'), visitorId: visitor.id })])
   const secure = ctx.url.protocol === 'https:' ? '; Secure' : ''
   ctx.setCookie = `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`
   ctx.visitor = visitor
@@ -100,8 +126,8 @@ function author(type: Post['authorType'], id: string): AuthorView {
   return { type: 'human', id, ...guestIdentity(id), verified: false }
 }
 
-const runView = (r: Run): DebateView => ({
-  id: r.id, kind: r.kind, status: r.status, personaId: (r.personaId as PersonaId | null) ?? null, error: r.error,
+const runView = (r: Run, visitorId: string | undefined): DebateView => ({
+  id: r.id, kind: r.kind, status: r.status, personaId: (r.personaId as PersonaId | null) ?? null, error: r.error, isOwn: r.visitorId === visitorId,
 })
 
 // D1 caps bound parameters per statement, so IN (...) lists are chunked.
@@ -152,7 +178,7 @@ async function toViews(ctx: Ctx, rows: Post[]): Promise<PostView[]> {
       liked: liked.has(r.id),
       bookmarked: marked.has(r.id),
       isOwn: r.authorType === 'human' && r.authorId === vid,
-      debate: run ? runView(run) : null,
+      debate: run ? runView(run, vid) : null,
     }
   })
 }
@@ -205,14 +231,11 @@ async function notify(env: Env, rootId: string, event: LiveEvent) {
 }
 
 // ---------- debates ----------
-async function aiBudgetLeft(db: DB, visitorId: string) {
-  const since = Date.now() - DAY
-  const [mine, all] = await Promise.all([
-    db.select({ n: count() }).from(debateRuns).where(and(eq(debateRuns.visitorId, visitorId), gte(debateRuns.createdAt, since))).get(),
-    db.select({ n: count() }).from(debateRuns).where(gte(debateRuns.createdAt, since)).get(),
-  ])
-  if ((mine?.n ?? 0) >= LIMITS.debatesPerVisitorPerDay) throw new HttpError(429, 'You have reached today\'s AI debate limit. Try again tomorrow.')
-  if ((all?.n ?? 0) >= LIMITS.debatesPerDay) throw new HttpError(429, 'The simulation has reached its daily AI budget. Try again later.')
+/** Every generation attempt (initial, follow-up, retry) is logged as an 'ai' usage event and counted here. */
+async function aiBudgetLeft(ctx: Ctx) {
+  const n = await usage(ctx, 'ai', Date.now() - DAY)
+  if (n.mine >= LIMITS.debatesPerVisitorPerDay || n.ip >= LIMITS.debatesPerIpPerDay) throw new HttpError(429, 'You have reached today\'s AI debate limit. Try again tomorrow.')
+  if (n.all >= LIMITS.debatesPerDay) throw new HttpError(429, 'The simulation has reached its daily AI budget. Try again later.')
 }
 
 /**
@@ -251,23 +274,27 @@ async function runDebate(env: Env, runId: string) {
     ])
     await notify(env, claimed.rootPostId, { type: 'debate', debateId: runId, status: 'completed' })
   } catch (e) {
-    const message = (e as Error).message || 'Generation failed'
-    console.error('debate failed', runId, message)
-    await db.update(debateRuns).set({ status: 'failed', error: message.slice(0, 200), updatedAt: Date.now() }).where(eq(debateRuns.id, runId))
+    const err = e as Error
+    console.error('debate failed', runId, err.name, err.message)
+    // public message only; the raw cause stays in logs
+    const error = err.name === 'TimeoutError' ? 'The AI took too long to respond.' : 'The AI could not generate replies.'
+    await db.update(debateRuns).set({ status: 'failed', error, updatedAt: Date.now() }).where(eq(debateRuns.id, runId))
     await notify(env, claimed.rootPostId, { type: 'debate', debateId: runId, status: 'failed' })
   }
 }
 
 const STALE_RUN_MS = 2 * 60_000
 
-/** Marks runs stuck in pending/running (isolate evicted mid-generation) as failed so they can be retried. */
-async function expireStaleRuns(db: DB, rootIds: string[]) {
-  if (!rootIds.length) return
+/** Marks runs stuck in pending/running (isolate evicted mid-generation) as failed, tells live viewers, returns them. */
+async function expireStaleRuns(ctx: Ctx, rootIds: string[]) {
+  if (!rootIds.length) return []
   const cutoff = Date.now() - STALE_RUN_MS
-  await inChunks(rootIds, async (c) => db.update(debateRuns)
-    .set({ status: 'failed', error: 'Generation timed out', updatedAt: Date.now() })
+  const expired = await inChunks(rootIds, async (c) => ctx.db.update(debateRuns)
+    .set({ status: 'failed', error: 'The AI took too long to respond.', updatedAt: Date.now() })
     .where(and(inArray(debateRuns.rootPostId, c), inArray(debateRuns.status, ['pending', 'running']), lt(debateRuns.updatedAt, cutoff)))
-    .returning({ id: debateRuns.id }).all())
+    .returning().all())
+  for (const r of expired) ctx.exec.waitUntil(notify(ctx.env, r.rootPostId, { type: 'debate', debateId: r.id, status: 'failed' }))
+  return expired
 }
 
 // ---------- handlers ----------
@@ -291,13 +318,13 @@ async function getPost(db: DB, id: string) {
 }
 
 async function threadView(ctx: Ctx, rootId: string): Promise<ThreadView> {
-  await expireStaleRuns(ctx.db, [rootId])
+  await expireStaleRuns(ctx, [rootId])
   const rows = await ctx.db.select().from(posts).where(eq(posts.rootId, rootId)).orderBy(asc(posts.createdAt)).limit(LIMITS.threadPosts + 50).all()
   const root = rows.find((r) => r.id === rootId)
   if (!root) throw new HttpError(404, 'Post not found')
   const views = await toViews(ctx, rows)
   const runs = await ctx.db.select().from(debateRuns).where(eq(debateRuns.rootPostId, rootId)).orderBy(asc(debateRuns.createdAt)).all()
-  return { root: views.find((v) => v.id === rootId)!, posts: views, debates: runs.map(runView) }
+  return { root: views.find((v) => v.id === rootId)!, posts: views, debates: runs.map((r) => runView(r, ctx.visitor?.id)) }
 }
 
 async function createPost(ctx: Ctx) {
@@ -306,9 +333,8 @@ async function createPost(ctx: Ctx) {
   const { db } = ctx
   const now = Date.now()
 
-  const recent = await db.select({ n: count() }).from(posts)
-    .where(and(eq(posts.authorType, 'human'), eq(posts.authorId, visitor.id), gte(posts.createdAt, now - LIMITS.postWindowMs))).get()
-  if ((recent?.n ?? 0) >= LIMITS.postsPerWindow) throw new HttpError(429, 'You are posting too fast. Take a breath and try again in a few minutes.')
+  const recent = await usage(ctx, 'post', now - LIMITS.postWindowMs)
+  if (recent.mine >= LIMITS.postsPerWindow || recent.ip >= LIMITS.postsPerIpPerWindow) throw new HttpError(429, 'You are posting too fast. Take a breath and try again in a few minutes.')
 
   const id = crypto.randomUUID()
   let rootId = id
@@ -320,13 +346,13 @@ async function createPost(ctx: Ctx) {
     const size = await db.select({ n: count() }).from(posts).where(eq(posts.rootId, rootId)).get()
     if ((size?.n ?? 0) >= LIMITS.threadPosts) throw new HttpError(409, 'This thread is full.')
     if (parent.authorType === 'persona') {
-      const runs = await db.select({ n: count() }).from(debateRuns).where(eq(debateRuns.rootPostId, rootId)).get()
+      const runs = await db.select({ n: count() }).from(usageEvents).where(and(eq(usageEvents.kind, 'ai'), eq(usageEvents.rootId, rootId))).get()
       if ((runs?.n ?? 0) >= DEBATE_LIMITS.runsPerThread) throw new HttpError(409, 'Debate limit reached for this thread. Start a new opinion to keep debating.')
-      await aiBudgetLeft(db, visitor.id)
+      await aiBudgetLeft(ctx)
       run = { id: crypto.randomUUID(), rootPostId: rootId, targetPostId: id, visitorId: visitor.id, kind: 'followup', personaId: parent.authorId, personaOrder: null, status: 'pending', error: null, createdAt: now, updatedAt: now }
     }
   } else {
-    await aiBudgetLeft(db, visitor.id)
+    await aiBudgetLeft(ctx)
     run = { id: crypto.randomUUID(), rootPostId: id, targetPostId: id, visitorId: visitor.id, kind: 'initial', personaId: null, personaOrder: input.personaOrder ?? [...PERSONA_IDS], status: 'pending', error: null, createdAt: now, updatedAt: now }
   }
 
@@ -335,13 +361,14 @@ async function createPost(ctx: Ctx) {
     content: input.content, media: input.media ?? null, topic: input.parentId ? null : topicOf(input.content),
     generator: null, debateId: null, createdAt: now,
   }
-  if (run) await db.batch([db.insert(posts).values(post), db.insert(debateRuns).values(run)])
-  else await db.insert(posts).values(post)
+  const log = [usageRow(ctx, 'post', { rootId }), ...(run ? [usageRow(ctx, 'ai', { rootId, runId: run.id })] : [])]
+  if (run) await db.batch([db.insert(posts).values(post), db.insert(debateRuns).values(run), db.insert(usageEvents).values(log)])
+  else await db.batch([db.insert(posts).values(post), db.insert(usageEvents).values(log)])
 
   if (run) ctx.exec.waitUntil(runDebate(ctx.env, run.id))
   if (input.parentId) ctx.exec.waitUntil(notify(ctx.env, rootId, { type: 'post', postId: id }))
   const [view] = await toViews(ctx, [post])
-  return Response.json({ post: view, debate: run ? runView(run) : null }, { status: 201 })
+  return Response.json({ post: view, debate: run ? runView(run, visitor.id) : null }, { status: 201 })
 }
 
 async function toggle(ctx: Ctx, table: typeof reactions | typeof bookmarks, postId: string) {
@@ -356,8 +383,9 @@ const ID = '([\\w-]{1,40})'
 type Handler = (ctx: Ctx, ...params: string[]) => Promise<Response | unknown>
 const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/api\/me$/, async (ctx) => {
-    const v = await requireVisitor(ctx)
-    return { id: v.id, ...guestIdentity(v.id), aiMode: aiMode(ctx.env) }
+    // Reads never create sessions; the first write does. Until then show a neutral identity.
+    const v = ctx.visitor
+    return v ? { id: v.id, ...guestIdentity(v.id), aiMode: aiMode(ctx.env) } : { id: '', ...guestIdentity('guest'), name: 'You', handle: 'guest', aiMode: aiMode(ctx.env) }
   }],
   ['GET', /^\/api\/me\/debate$/, async (ctx) => {
     if (!ctx.visitor) return null
@@ -374,7 +402,11 @@ const routes: [string, RegExp, Handler][] = [
       tab === 'media' ? isNotNull(posts.media) : undefined,
     ], true)
     const pendingRoots = res.posts.filter((p) => p.debate && (p.debate.status === 'pending' || p.debate.status === 'running'))
-    if (pendingRoots.length) await expireStaleRuns(ctx.db, pendingRoots.map((p) => p.id))
+    const expired = new Map((await expireStaleRuns(ctx, pendingRoots.map((p) => p.id))).map((r) => [r.id, r]))
+    for (const p of pendingRoots) {
+      const r = expired.get(p.debate!.id)
+      if (r) p.debate = { ...p.debate!, status: 'failed', error: r.error }
+    }
     return res
   }],
   ['GET', /^\/api\/search$/, async (ctx) => {
@@ -427,7 +459,7 @@ const routes: [string, RegExp, Handler][] = [
     const post = await getPost(ctx.db, id)
     if (post.authorType !== 'human' || post.authorId !== visitor.id) throw new HttpError(403, 'You can only delete your own posts.')
     await ctx.db.delete(posts).where(eq(posts.id, id))
-    if (post.parentId) ctx.exec.waitUntil(notify(ctx.env, post.rootId, { type: 'post', postId: id }))
+    ctx.exec.waitUntil(notify(ctx.env, post.rootId, { type: 'post', postId: id }))
     return { ok: true }
   }],
   ['POST', new RegExp(`^/api/posts/${ID}/like$`), async (ctx, id) => {
@@ -441,21 +473,28 @@ const routes: [string, RegExp, Handler][] = [
     const run = await ctx.db.select().from(debateRuns).where(eq(debateRuns.id, id)).get()
     if (!run) throw new HttpError(404, 'Debate not found')
     if (run.visitorId !== visitor.id) throw new HttpError(403, 'Only the author can retry this debate.')
-    await expireStaleRuns(ctx.db, [run.rootPostId])
+    await expireStaleRuns(ctx, [run.rootPostId])
     const current = await ctx.db.select().from(debateRuns).where(eq(debateRuns.id, id)).get()
     if (current?.status !== 'failed') throw new HttpError(409, 'Only failed debates can be retried.')
-    await aiBudgetLeft(ctx.db, visitor.id)
-    const updated = await ctx.db.update(debateRuns).set({ status: 'pending', error: null, updatedAt: Date.now() })
-      .where(and(eq(debateRuns.id, id), eq(debateRuns.status, 'failed'))).returning().get()
-    if (!updated) throw new HttpError(409, 'Only failed debates can be retried.')
+    const attempts = await ctx.db.select({ n: count() }).from(usageEvents).where(and(eq(usageEvents.kind, 'ai'), eq(usageEvents.runId, id))).get()
+    if ((attempts?.n ?? 0) > LIMITS.retriesPerRun) throw new HttpError(409, 'This debate has been retried too many times. Try posting again later.')
+    await aiBudgetLeft(ctx)
+    const [updated] = await ctx.db.batch([
+      ctx.db.update(debateRuns).set({ status: 'pending', error: null, updatedAt: Date.now() })
+        .where(and(eq(debateRuns.id, id), eq(debateRuns.status, 'failed'))).returning(),
+      ctx.db.insert(usageEvents).values(usageRow(ctx, 'ai', { rootId: run.rootPostId, runId: id })),
+    ])
+    if (!updated.length) throw new HttpError(409, 'Only failed debates can be retried.')
     ctx.exec.waitUntil(runDebate(ctx.env, id))
-    return runView(updated)
+    return runView(updated[0], visitor.id)
   }],
   ['GET', new RegExp(`^/api/posts/${ID}/live$`), async (ctx, id) => {
     if (ctx.req.headers.get('upgrade')?.toLowerCase() !== 'websocket') throw new HttpError(426, 'Expected WebSocket')
     const post = await getPost(ctx.db, id)
     if (post.parentId) throw new HttpError(400, 'Subscribe to the thread root')
-    return ctx.env.THREAD_ROOM.get(ctx.env.THREAD_ROOM.idFromName(post.id)).fetch(ctx.req)
+    const forwarded = new Request(ctx.req)
+    forwarded.headers.set('x-client-ip', ctx.ip)
+    return ctx.env.THREAD_ROOM.get(ctx.env.THREAD_ROOM.idFromName(post.id)).fetch(forwarded)
   }],
 ]
 
@@ -471,7 +510,7 @@ function sameOrigin(req: Request, url: URL) {
 async function handleApi(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
   const db = drizzle(env.DB, { schema })
-  const ctx: Ctx = { req, url, env, exec, db, visitor: null }
+  const ctx: Ctx = { req, url, env, exec, db, ip: req.headers.get('cf-connecting-ip') ?? 'local', visitor: null }
   try {
     const route = routes.find(([m, re]) => m === req.method && re.test(url.pathname))
     if (!route) {

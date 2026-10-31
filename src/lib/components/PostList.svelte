@@ -20,7 +20,8 @@
 
   let sentinel: HTMLDivElement | undefined = $state()
   $effect(() => {
-    if (!sentinel || !query.hasNextPage || query.isFetchingNextPage) return
+    // after a failed page load, wait for the manual retry button instead of re-requesting in a loop
+    if (!sentinel || !query.hasNextPage || query.isFetchingNextPage || query.isFetchNextPageError) return
     const io = new IntersectionObserver(([e]) => e?.isIntersecting && query.fetchNextPage(), { rootMargin: '400px' })
     io.observe(sentinel)
     return () => io.disconnect()
@@ -60,7 +61,7 @@
               <PostCard post={reply} small replyingTo={post.author.handle} />
             {/each}
             {#if post.debate && post.debate.status !== 'completed'}
-              <DebateStatus debate={post.debate} rootId={post.id} isOwn={post.isOwn} />
+              <DebateStatus debate={post.debate} rootId={post.id} isOwn={post.debate.isOwn} />
             {/if}
           </div>
         {/if}
@@ -73,6 +74,9 @@
     {/each}
   </ul>
   <div bind:this={sentinel} class="py-4 text-center">
+    {#if query.isFetchNextPageError}
+      <p class="mb-2 text-sm text-danger" role="alert">{query.error?.message ?? 'Could not load more posts.'}</p>
+    {/if}
     {#if query.hasNextPage}
       <button
         type="button"
@@ -80,7 +84,7 @@
         disabled={query.isFetchingNextPage}
         class="rounded-xl border border-line bg-surface px-4 py-2 text-sm font-medium text-muted hover:bg-sunken disabled:opacity-60"
       >
-        {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        {query.isFetchingNextPage ? 'Loading…' : query.isFetchNextPageError ? 'Try again' : 'Load more'}
       </button>
     {:else if posts.length > 3}
       <p class="text-sm text-faint">You've reached the end of this simulation.</p>

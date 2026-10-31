@@ -18,6 +18,9 @@
     queryFn: ({ pageParam }: { pageParam: string | null }) => api.feed(tab, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
+    // poll while a debate is open so server-side stale-run expiry still reaches the feed
+    refetchInterval: (q) =>
+      q.state.data?.pages.some((p) => p.posts.some((x) => x.debate?.status === 'pending' || x.debate?.status === 'running')) ? 20_000 : false,
   }))
 </script>
 

@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 
 const MAX_CONNECTIONS = 500
+const MAX_PER_CLIENT = 10
 
 /**
  * One instance per thread (idFromName(rootPostId)). Fans out "something changed" notifications
@@ -16,8 +17,11 @@ export class ThreadRoom extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected WebSocket', { status: 426 })
     if (this.ctx.getWebSockets().length >= MAX_CONNECTIONS) return new Response('Room full', { status: 503 })
+    // Sockets are tagged with the client IP (set by the Worker) so one client cannot fill the room.
+    const ip = request.headers.get('x-client-ip') ?? 'unknown'
+    if (this.ctx.getWebSockets(ip).length >= MAX_PER_CLIENT) return new Response('Too many connections', { status: 429 })
     const { 0: client, 1: server } = new WebSocketPair()
-    this.ctx.acceptWebSocket(server)
+    this.ctx.acceptWebSocket(server, [ip])
     return new Response(null, { status: 101, webSocket: client })
   }
 

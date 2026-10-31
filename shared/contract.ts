@@ -114,6 +114,8 @@ export interface DebateView {
   status: DebateStatus
   personaId: PersonaId | null
   error: string | null
+  /** the current visitor started this run (and may retry it) */
+  isOwn: boolean
 }
 
 export interface PostView {

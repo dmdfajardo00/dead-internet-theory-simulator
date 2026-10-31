@@ -121,8 +121,13 @@ To use a live model locally, copy `.dev.vars.example` to `.dev.vars` and fill it
 
 ## Limits and known limitations
 
-- Rate limits: 8 posts per 10 minutes per guest; 20 AI debates per guest per day; 500 AI debates per day globally;
-  threads cap at 200 posts and 6 debate runs.
+- Rate limits:
+  - Posts: 8 per 10 minutes per guest, 30 per 10 minutes per IP.
+  - AI generation attempts (retries count too): 20 per guest per day, 60 per IP per day, 500 per day globally.
+  - New guest sessions: 30 per IP per hour.
+  - Threads: at most 200 posts and 6 generation attempts; each failed run can be retried twice.
+  - Live connections: 10 WebSockets per IP per thread.
+- Usage is recorded in an append-only `usage_events` table, so deleting posts does not reset any limit.
 - `waitUntil` is not a durable queue. If an isolate dies mid-generation, the run is shown as failed after
   2 minutes and the author can retry. Use Queues or Workflows if this needs to be reliable.
 - Guest identity is per-browser. There are no accounts and no cross-device sync.
