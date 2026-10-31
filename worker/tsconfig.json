@@ -6,8 +6,8 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "lib": ["ES2022"],
-    "types": ["@cloudflare/vitest-plugin/types", "./worker-configuration.d.ts"]
+    "lib": ["ES2024"],
+    "types": ["@cloudflare/vitest-plugin/types"]
   },
   "include": ["./**/*.ts", "../shared/**/*.ts", "../test/**/*.ts"]
 }

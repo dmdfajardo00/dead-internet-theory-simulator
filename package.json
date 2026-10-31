@@ -15,7 +15,7 @@
     "cf-typegen": "wrangler types worker/worker-configuration.d.ts",
     "deploy": "npm run build && wrangler deploy",
     "icons": "node scripts/icons.mjs",
-    "db:seed:local": "wrangler d1 execute deadnet --local --file=drizzle/seed.sql"
+    "db:seed:local": "wrangler d1 execute deadnet --local --file=worker/db/seed.sql"
   },
   "dependencies": {
     "@iconify/svelte": "^5.2.3",
