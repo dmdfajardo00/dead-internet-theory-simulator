@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Deadnet — an interactive Dead Internet Theory social network simulator." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Deadnet</title>
+    <script>
+      try {
+        const t = JSON.parse(localStorage.getItem('deadnet:prefs') || '{}').theme
+        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

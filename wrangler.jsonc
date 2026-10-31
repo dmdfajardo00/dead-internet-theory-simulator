@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deadnet",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "deadnet",
+      // Replace with the id printed by `npx wrangler d1 create deadnet` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "THREAD_ROOM", "class_name": "ThreadRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ThreadRoom"] }],
+  "vars": {
+    // Inexpensive structured-output capable model; override per environment.
+    "OPENROUTER_MODEL": "google/gemini-2.5-flash-lite"
+  }
+  // Secret (wrangler secret put / .dev.vars): OPENROUTER_API_KEY
+}

@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local live AI. Leave unset to run in labeled demo mode.
+OPENROUTER_API_KEY=
+# Optional override of the wrangler.jsonc default
+# OPENROUTER_MODEL=google/gemini-2.5-flash-lite
