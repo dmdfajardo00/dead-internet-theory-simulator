@@ -26,7 +26,7 @@ type Post = typeof posts.$inferSelect
 type Run = typeof debateRuns.$inferSelect
 type Visitor = typeof visitors.$inferSelect
 
-export const LIMITS = {
+const LIMITS = {
   postsPerWindow: 8,
   postWindowMs: 10 * 60_000,
   debatesPerVisitorPerDay: 20,
@@ -220,7 +220,7 @@ async function aiBudgetLeft(db: DB, visitorId: string) {
  * shortcut: runs inside waitUntil, which is not a durable queue — if the isolate dies mid-run the
  * run stays 'running'; such stale runs are shown as failed after 2 minutes and can be retried.
  */
-export async function runDebate(env: Env, runId: string) {
+async function runDebate(env: Env, runId: string) {
   const db = drizzle(env.DB, { schema })
   const claimed = await db.update(debateRuns).set({ status: 'running', updatedAt: Date.now() })
     .where(and(eq(debateRuns.id, runId), eq(debateRuns.status, 'pending'))).returning().get()
@@ -468,7 +468,7 @@ function sameOrigin(req: Request, url: URL) {
   try { return new URL(origin).host === url.host } catch { return false }
 }
 
-export async function handleApi(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
+async function handleApi(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
   const db = drizzle(env.DB, { schema })
   const ctx: Ctx = { req, url, env, exec, db, visitor: null }
