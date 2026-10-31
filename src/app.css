@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Deadnet design tokens (light), overridden for .dark below */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-app: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-sunken: #f1f2f7;
+  --color-ink: #1b1d3a;
+  --color-muted: #6b7190;
+  --color-faint: #9aa0b8;
+  --color-line: #e7e9f1;
+  --color-accent: #7a5af5;
+  --color-accent-strong: #6544e6;
+  --color-accent-soft: #efeafe;
+  --color-mint: #1fb88f;
+  --color-mint-soft: #e3f7f0;
+  --color-warn: #f08a24;
+  --color-warn-soft: #fdf0e2;
+  --color-danger: #e5484d;
+  --color-danger-soft: #fdebec;
+  --radius-card: 1rem;
+  --shadow-card: 0 1px 2px rgb(27 29 58 / 0.04), 0 4px 16px rgb(27 29 58 / 0.04);
+}
+
+.dark {
+  --color-app: #0e0f1a;
+  --color-surface: #161828;
+  --color-sunken: #1d2034;
+  --color-ink: #eceefa;
+  --color-muted: #a0a6c2;
+  --color-faint: #6f7592;
+  --color-line: #262a42;
+  --color-accent: #9a80ff;
+  --color-accent-strong: #ad97ff;
+  --color-accent-soft: #2a2450;
+  --color-mint-soft: #13332b;
+  --color-warn-soft: #3a2a17;
+  --color-danger-soft: #3a1c22;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+html { background: var(--color-app); color: var(--color-ink); }
+body { @apply font-sans antialiased; margin: 0; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+@utility card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* nearest-neighbour upscaling for procedural pixel art */
+.pixelated { image-rendering: pixelated; }

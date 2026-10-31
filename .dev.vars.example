@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local live AI. Leave unset to run in labeled demo mode.
+OPENROUTER_API_KEY=
+CLOUDFLARE_ACCOUNT_ID=
+AI_GATEWAY_ID=
+# Only needed if the gateway has Authenticated Gateway enabled
+AI_GATEWAY_TOKEN=
+# Optional override of the wrangler.jsonc default
+# OPENROUTER_MODEL=google/gemini-2.5-flash-lite
